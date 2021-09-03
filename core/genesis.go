@@ -255,15 +255,22 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
+// 创建创世区块
 func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
+	// 从DB读取创世区块hash
+	// 不存在创世区块hash
 	if db == nil {
+		//
 		db = rawdb.NewMemoryDatabase()
 	}
+	// 创世区块hash存在，但是没有父块。从零初始化全新的state
 	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	if err != nil {
 		panic(err)
 	}
+	// 遍历genesis.json文件中的Alloc账户
 	for addr, account := range g.Alloc {
+		// statedb 数据库中存入账户的balance、code、nonce 状态
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
@@ -271,7 +278,9 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 			statedb.SetState(addr, key, value)
 		}
 	}
+	// 由于当前只存入了账户数据，所以这里会计算出对应的merkle tree 的根节点hash ，即stateroot
 	root := statedb.IntermediateRoot(false)
+	// genesis文件中的其他配置戒指映射到区块头head变量中
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),

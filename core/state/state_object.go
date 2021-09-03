@@ -99,10 +99,15 @@ func (s *stateObject) empty() bool {
 
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
+// 账户结构
+// Root和CodeHash字段为空 - 则对应的账户信息不会存储在物理数据库
 type Account struct {
 	Nonce    uint64
 	Balance  *big.Int
+	// storageroot hash - 外部账户此字段为空
 	Root     common.Hash // merkle root of the storage trie
+	// 合约代码hash - 外部账户此字段为空
+	// 此字段是否为空 - 鉴别是合约账户还是外部账户
 	CodeHash []byte
 }
 

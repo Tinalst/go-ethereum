@@ -48,6 +48,7 @@ const (
 )
 
 // Transaction is an Ethereum transaction.
+// 大写开头的命名 - 对外可访问
 type Transaction struct {
 	inner TxData    // Consensus contents of a transaction
 	time  time.Time // Time first seen locally (spam avoidance)
@@ -68,6 +69,10 @@ func NewTx(inner TxData) *Transaction {
 // TxData is the underlying data of a transaction.
 //
 // This is implemented by DynamicFeeTx, LegacyTx and AccessListTx.
+// 大写开头的命名- 对外可访问
+// 交易消息结构体
+// 字段顺序不能随意调整 - 因为hash原因
+// 不能因为精度问题引起计算不准确 - 所以采用bigint
 type TxData interface {
 	txType() byte // returns the type ID
 	copy() TxData // creates a deep copy and initializes all fields
@@ -88,6 +93,7 @@ type TxData interface {
 }
 
 // EncodeRLP implements rlp.Encoder
+// rlp - 接口实现方法
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
 	if tx.Type() == LegacyTxType {
 		return rlp.Encode(w, tx.inner)
@@ -253,6 +259,7 @@ func (tx *Transaction) Type() uint8 {
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
+// 获取交易chainid
 func (tx *Transaction) ChainId() *big.Int {
 	return tx.inner.chainID()
 }
@@ -366,22 +373,31 @@ func (tx *Transaction) EffectiveGasTipIntCmp(other *big.Int, baseFee *big.Int) i
 
 // Hash returns the transaction hash.
 func (tx *Transaction) Hash() common.Hash {
+	// 如果hash不存在
 	if hash := tx.hash.Load(); hash != nil {
+		// 如何hash存在，直接返回hash
 		return hash.(common.Hash)
 	}
 
 	var h common.Hash
 	if tx.Type() == LegacyTxType {
+		// 对交易进行hash计算
 		h = rlpHash(tx.inner)
 	} else {
 		h = prefixedRlpHash(tx.Type(), tx.inner)
 	}
+	// 存储hash
 	tx.hash.Store(h)
+	// 返回hash
 	return h
 }
 
 // Size returns the true RLP encoded storage size of the transaction, either by
 // encoding and returning it, or returning a previously cached value.
+// 缓存交易大小
+// - 交易的rlp编码后的数据大小
+// - 每笔交易进入交易池都需要检查是否大于32kb
+// -
 func (tx *Transaction) Size() common.StorageSize {
 	if size := tx.size.Load(); size != nil {
 		return size.(common.StorageSize)

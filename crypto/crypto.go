@@ -105,6 +105,7 @@ func Keccak512(data ...[]byte) []byte {
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
+// 合约地址生成算法
 func CreateAddress(b common.Address, nonce uint64) common.Address {
 	data, _ := rlp.EncodeToBytes([]interface{}{b, nonce})
 	return common.BytesToAddress(Keccak256(data)[12:])
@@ -112,6 +113,7 @@ func CreateAddress(b common.Address, nonce uint64) common.Address {
 
 // CreateAddress2 creates an ethereum address given the address bytes, initial
 // contract code hash and a salt.
+// 计算合约地址的另一种算法
 func CreateAddress2(b common.Address, salt [32]byte, inithash []byte) common.Address {
 	return common.BytesToAddress(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
 }
