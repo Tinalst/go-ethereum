@@ -66,21 +66,42 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 //go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
 
 // Header represents a block header in the Ethereum blockchain.
+// 区块头内容
 type Header struct {
+	// 父区块hash
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
+	// 块体里有很多叔块区块，块头里只是存储里这些叔块集和rlphash值
 	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	// 矿工地址
 	Coinbase    common.Address `json:"miner"            gencodec:"required"`
-	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	// 世界状态默克尔🌲树根hash
+	// 世界状态树存储了账户状态- account state（nonce、balance、storageRoot，codehash）
+	// 账户状态 - nonce - 外部账户的nonce表示外部账户发起的交易次数 - 合约账户的nonce表示合约内创建合约的次数
+	//         - balance - 外部账户的balance表示外部账户的余额 - 合约账户的balance表示合约账户的余额
+	//         - storageRoot -账户的存储树（account -storage trie）
+	//         - codehash - 外部账户为空字符串hash - 合约账户为合约代码hash
+ 	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	// 交易默克尔🌲根hash - nonce 、gasprice、gas、to、value、input、r、s、v
 	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	// 交易回执默克尔🌲树根hash
 	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	// 交易时间日志
 	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
+	// 挖矿难度系数
 	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
+	// 块高
 	Number      *big.Int       `json:"number"           gencodec:"required"`
+	// 区块块高
 	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
+	// 区块所有交易执行已经消耗的gas量
 	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
+	// 时间戳
 	Time        uint64         `json:"timestamp"        gencodec:"required"`
+	// 矿工自定义的，推广内容或者投票用
 	Extra       []byte         `json:"extraData"        gencodec:"required"`
+	// mixHash需要nonce 才能进行工作量证明 ？？
 	MixDigest   common.Hash    `json:"mixHash"`
+	// nonce 需要mixhash 才能进行工作量证明？？
 	Nonce       BlockNonce     `json:"nonce"`
 
 	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
@@ -186,9 +207,10 @@ type extblock struct {
 // changes to header and to the field values will not affect the
 // block.
 //
-// The values of TxHash, UncleHash, ReceiptHash and Bloom in header
+// The values of TxHash（transactionsRoot）, UncleHash（叔块集合的rplhash）, ReceiptHash(ReceiptRoot) and Bloom(logBlooms) in header
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
+// 创建区块调用此方法
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt, hasher TrieHasher) *Block {
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 

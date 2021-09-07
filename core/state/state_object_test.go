@@ -18,6 +18,7 @@ package state
 
 import (
 	"bytes"
+	"github.com/ethereum/go-ethereum/log"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -28,6 +29,7 @@ func BenchmarkCutOriginal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		bytes.TrimLeft(value[:], "\x00")
 	}
+	log.Debug("111")
 }
 
 func BenchmarkCutsetterFn(b *testing.B) {
