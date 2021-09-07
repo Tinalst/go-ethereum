@@ -1241,6 +1241,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		for _, set := range events {
 			txs = append(txs, set.Flatten()...)
 		}
+		// 只有从非可执行状态变为可执行状态后才会发送信号 - 广播到网络中
 		pool.txFeed.Send(NewTxsEvent{txs})
 	}
 }
