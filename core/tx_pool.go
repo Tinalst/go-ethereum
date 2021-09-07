@@ -149,20 +149,50 @@ type blockChain interface {
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
+// 交易池配置
+// 以太坊的交易宏观流程
+// 用户 -> 将交易提交到节点A -> 节点A验证交易-> 将交易标记为local，如果不被标记为local的交易，就是从其他节点广播过来的
+// 目前，以太坊每秒能处理30-40笔交易 ，出块时间为15s一个快
+// 在交易池中的交易有两种:
+//  - 一种是非可执行的交易（还处于queue的交易）
+//  - 一种是可执行的交易（从queue队列切到pending队列里的交易，这些交易马上就会被矿工打包上链）
+// 交易校验
+//  - 校验账户余额是否够支付交易执行
+//  - 交易里的nonce是否合约
+//  - statedb？？？- 接收到区块信号 - 立即重置statedb
 type TxPoolConfig struct {
+	// 存储local交易账户地址
 	Locals    []common.Address // Addresses that should be treated by default as local
+	// 是否进制将交易标记为本地交易的机制 - 默认为false - 如果为true，那么多有交易都被视为remote交易
 	NoLocals  bool             // Whether local transaction handling should be disabled
+	// 存储local交易记录的文件名 - 节点重启会用到
+	// journal 文件不是保存所有的本地账户交易记录
+	// 仅仅只保存当前交易池中存在的本地交易
+	// 因此会定期对这个文件做rotate操作 丢弃旧数据
 	Journal   string           // Journal of local transactions to survive node restarts
+	// 定期重新生成local交易记录的时间间隔
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
 
+	// remote交易进入交易池的最低gas price - 此设置对local交易无效 - 默认为1
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
+	// 替换交易要求的价格上调涨幅比例最小值 - 低于这个值的交易替换请求将会被拒绝
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
+
+	// 以下对交易的数量的限制-不影响local交易和账户
+	// local交易可以优先remote交易
+	// 允许每个账户可以保留在交易池的最大数量 - 默认为16
+	// 这里的交易指的是pending状态的交易
 	AccountSlots uint64 // Number of executable transaction slots guaranteed per account
+	// 允许交易池能处理的交易数量最大值 - 默认是4096
+	// 这里的交易指的是pending状态的交易
 	GlobalSlots  uint64 // Maximum number of executable transaction slots for all accounts
+	// 每个账户可以保留在交易池中的非可执行的交易（意思就是在queue队列中的交易）的最大数量 - 默认是64笔
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
+	// 允许交易池能放的非可执行的交易数量上线 - 默认是1024
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
+	// 允许remote的交易在quequ中存活的最长时间 - 交易池每分钟检查一次 - 如果有超期的remote账户 会移除 - 默认是3小时
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 }
 
@@ -309,9 +339,12 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	go pool.scheduleReorgLoop()
 
 	// If local transactions and journaling is enabled, load from disk
+	// 如果NoLocals=false（也就是区分local和remote交易） 并且存在存储local交易的文件名
 	if !config.NoLocals && config.Journal != "" {
+		// 开启本地交易存储
 		pool.journal = newTxJournal(config.Journal)
 
+		// ???
 		if err := pool.journal.load(pool.AddLocals); err != nil {
 			log.Warn("Failed to load transaction journal", "err", err)
 		}
@@ -321,6 +354,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	}
 
 	// Subscribe events from blockchain and start the main event loop.
+	// 订阅链的区块头事件
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 	pool.wg.Add(1)
 	go pool.loop()
@@ -347,6 +381,7 @@ func (pool *TxPool) loop() {
 	defer evict.Stop()
 	defer journal.Stop()
 
+	// 开始监听新事件
 	for {
 		select {
 		// Handle ChainHeadEvent
@@ -393,6 +428,7 @@ func (pool *TxPool) loop() {
 			pool.mu.Unlock()
 
 		// Handle local transaction journal rotation
+		// 指定local journal文件瘦身 移除掉不是当前交易池的本地账户交易数据
 		case <-journal.C:
 			if pool.journal != nil {
 				pool.mu.Lock()
@@ -791,6 +827,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 // deemed to have been sent from a local account.
 func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 	// Only journal if it's enabled and the transaction is local
+	// 如果不存在local记录文件名 或者不属于本地账户地址 - 不允许插入到local journal文件
 	if pool.journal == nil || !pool.locals.contains(from) {
 		return
 	}
@@ -1210,6 +1247,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
+// 接收到事件之后 调用该方法更新state和处理交易
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions

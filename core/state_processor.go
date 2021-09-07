@@ -104,6 +104,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 	}
 
 	// Update the state with pending changes.
+	// 交易从pending状态变化 -> 成功 或者失败状态
 	var root []byte
 	if config.IsByzantium(blockNumber) {
 		statedb.Finalise(true)
@@ -124,7 +125,9 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, bc ChainCon
 	receipt.GasUsed = result.UsedGas
 
 	// If the transaction created a contract, store the creation address in the receipt.
+	// 如果这笔交易是做创建合约
 	if msg.To() == nil {
+		// 将新合约地址传入receipt.ContractAddress字段
 		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 

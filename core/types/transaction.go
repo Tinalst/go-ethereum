@@ -48,7 +48,7 @@ const (
 )
 
 // Transaction is an Ethereum transaction.
-// 大写开头的命名 - 对外可访问
+// 大写开头的命名 - public
 type Transaction struct {
 	inner TxData    // Consensus contents of a transaction
 	time  time.Time // Time first seen locally (spam avoidance)

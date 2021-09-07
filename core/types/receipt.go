@@ -50,25 +50,43 @@ const (
 )
 
 // Receipt represents the results of a transaction.
+// 交易回执信息
 type Receipt struct {
+	//=====共识内容=======
+	// 校验区块合法性的时候会校验这些字段 - 确保交易的执行顺序
 	// Consensus fields: These fields are defined by the Yellow Paper
 	Type              uint8  `json:"type,omitempty"`
 	PostState         []byte `json:"root"`
+	// 执行结果 - 1 成功 0 失败
 	Status            uint64 `json:"status"`
+	// 区块累计已经使用了的gas量 - 包含当前交易
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed" gencodec:"required"`
+	// 交易事件日志布隆信息 - 从logs提取的事件布隆过滤器 - 快速检测topis的事件是否存在与logs中
 	Bloom             Bloom  `json:"logsBloom"         gencodec:"required"`
+	// 交易事件的日志 - 交易所产生的合约事件列表
 	Logs              []*Log `json:"logs"              gencodec:"required"`
 
+	//===== 交易信息========
 	// Implementation fields: These fields are added by geth when processing a transaction.
 	// They are stored in the chain database.
+	// 交易hash
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
+	// 新合约地址
+	// 在创建新合约的时候已经把合约地址提交到了世界状态了
 	ContractAddress common.Address `json:"contractAddress"`
+	// 交易消耗的gas
+	// 不参与共识校验原因是因为这块值是属于CumulativeGasUsed的一部分，所以只要校验CumulativeGasUsed 就等于校验了这个字段了
 	GasUsed         uint64         `json:"gasUsed" gencodec:"required"`
 
+
+	//=======区块信息============
 	// Inclusion information: These fields provide information about the inclusion of the
 	// transaction corresponding to this receipt.
+	// 交易所在区块hash
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
+	// 交易所在区块高度
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
+	// 交易所在区块交易集中的索引
 	TransactionIndex uint        `json:"transactionIndex"`
 }
 
@@ -83,10 +101,15 @@ type receiptMarshaling struct {
 }
 
 // receiptRLP is the consensus encoding of a receipt.
+// 交易回执参与共识的内容
 type receiptRLP struct {
+	// Receipt.PostState || Receipt.Status
 	PostStateOrStatus []byte
+	// 区块累计gas消耗
 	CumulativeGasUsed uint64
+	// 交易事件日志过滤器
 	Bloom             Bloom
+	// 交易事件日志
 	Logs              []*Log
 }
 
@@ -235,6 +258,7 @@ type ReceiptForStorage Receipt
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
 // into an RLP stream.
+// 🍊回执信息存储
 func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 	enc := &storedReceiptRLP{
 		PostStateOrStatus: (*Receipt)(r).statusEncoding(),

@@ -100,6 +100,7 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 
 // LogForStorage is a wrapper around a Log that flattens and parses the entire content of
 // a log including non-consensus fields.
+// logs存入数据哭的简化对象
 type LogForStorage Log
 
 // EncodeRLP implements rlp.Encoder.

@@ -575,6 +575,7 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
+	// 在数据库leveldb中读取交易回执
 	receipts := make(types.Receipts, len(storageReceipts))
 	for i, storageReceipt := range storageReceipts {
 		receipts[i] = (*types.Receipt)(storageReceipt)
@@ -610,10 +611,13 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *para
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
+	// 创建ReceiptForStorage（专门为存储定义的一个结构）类型的切片，长度为 receipts长度
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
+	// 存储receipts中的每一个元素
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
 	}
+	// 将整个storageReceipts列表进行rlp编码
 	bytes, err := rlp.EncodeToBytes(storageReceipts)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
